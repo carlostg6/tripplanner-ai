@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest
+moto[dynamodb]>=5
+bedrock-agentcore-starter-toolkit
