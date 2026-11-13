@@ -1,6 +1,6 @@
 ﻿# Paso 3: construye el frontend con las salidas del stack y lo publica en S3 + CloudFront.
 # Uso:  .\scripts\windows\3-deploy-frontend.ps1 [-Profile tripplanner] [-Region us-east-1] [-AgentArn arn:...]
-param([string]$Profile = "tripplanner", [string]$Region = "us-east-1", [string]$Stack = "tripplanner-backend",
+param([string]$Profile = "tripplanner", [string]$Region = "us-east-1", [string]$Stack = "tripplanner-ai",
       [string]$AgentArn = "")
 . "$PSScriptRoot\_common.ps1"
 Assert-Command npm "Instala Node.js 20+ (nodejs.org)."

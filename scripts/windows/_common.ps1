@@ -1,5 +1,6 @@
 ﻿# Funciones comunes para los scripts de despliegue en Windows (PowerShell 5.1+).
 $ErrorActionPreference = "Stop"
+$env:AWS_PAGER = ""   # sin paginador "-- Más --" en la salida de AWS CLI
 
 function Use-AwsProfile([string]$Profile) {
     # Exporta credenciales temporales del perfil (incluye sesiones de `aws login`)

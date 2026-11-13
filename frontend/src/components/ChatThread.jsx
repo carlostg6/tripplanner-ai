@@ -1,6 +1,7 @@
 import { Bot, CheckCircle2, Loader2, Square, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import AgentRenderer from "./AgentRenderer";
 
 function Statuses({ statuses, pending }) {
@@ -34,7 +35,7 @@ export function ChatMessages({ messages }) {
             <div className="msg-body">
               <Statuses statuses={m.statuses} pending={m.pending} />
               {m.ui.map((e, j) => <AgentRenderer key={j} event={e} />)}
-              {m.text && <div className="bubble md"><ReactMarkdown>{m.text}</ReactMarkdown>{m.pending && <span className="caret" />}</div>}
+              {m.text && <div className="bubble md"><ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>{m.pending && <span className="caret" />}</div>}
               {m.error && <div className="alert alert-error">{m.error}</div>}
             </div>
           </div>

@@ -3,7 +3,7 @@
 # Requisitos: pip install -r requirements-dev.txt ; stack SAM ya desplegado.
 # Uso: ./scripts/deploy_agent.sh <stack-name> [region]
 set -euo pipefail
-STACK=${1:-tripplanner-backend}
+STACK=${1:-tripplanner-ai}
 REGION=${2:-us-east-1}
 export AGENTCORE_SUPPRESS_RECOMMENDATION=1
 out() { aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" \

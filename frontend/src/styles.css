@@ -195,3 +195,7 @@ section { display: flex; flex-direction: column; }
   .page { padding: 1rem; } .chat-page { height: auto; min-height: 80vh; }
   .editor-act { grid-template-columns: 1fr 1fr; }
 }
+
+.bubble.md table { border-collapse: collapse; margin: .5rem 0; font-size: .88rem; }
+.bubble.md th, .bubble.md td { border: 1px solid var(--line); padding: .3rem .6rem; text-align: left; }
+.bubble.md th { background: #f3f6fc; }

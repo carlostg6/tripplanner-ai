@@ -56,7 +56,7 @@ export MEMORY_ID=<id impreso>
 ```bash
 cd agent
 pytest -q                                   # 4 pruebas sin Bedrock
-./scripts/deploy_agent.sh tripplanner-backend us-east-1
+./scripts/deploy_agent.sh tripplanner-ai us-east-1
 ```
 
 El script `deploy_agent.sh` hace lo siguiente:
@@ -81,7 +81,7 @@ agentcore invoke '{"prompt":"Hola"}' --bearer-token "$TOKEN"
 ## Paso 4 · Frontend
 
 ```bash
-AGENT_RUNTIME_ARN=<Agent ARN> ./scripts/deploy_frontend.sh tripplanner-backend us-east-1
+AGENT_RUNTIME_ARN=<Agent ARN> ./scripts/deploy_frontend.sh tripplanner-ai us-east-1
 ```
 
 El script genera `.env.production.local` con las salidas del stack, construye el frontend con Vite, lo sube a S3 e invalida la caché de CloudFront.

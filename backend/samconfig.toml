@@ -1,7 +1,7 @@
 version = 0.1
 
 [default.global.parameters]
-stack_name = "tripplanner-backend"
+stack_name = "tripplanner-ai"
 
 [default.build.parameters]
 cached = true

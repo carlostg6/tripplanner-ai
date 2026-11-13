@@ -2,7 +2,7 @@
 # Construye el frontend con las salidas del stack y lo publica en S3 + CloudFront.
 # Uso: AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:... ./scripts/deploy_frontend.sh [stack] [region]
 set -euo pipefail
-STACK=${1:-tripplanner-backend}
+STACK=${1:-tripplanner-ai}
 REGION=${2:-us-east-1}
 : "${AGENT_RUNTIME_ARN:?Define AGENT_RUNTIME_ARN (salida de 'agentcore status')}"
 out() { aws cloudformation describe-stacks --stack-name "$STACK" --region "$REGION" \

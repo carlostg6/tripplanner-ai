@@ -24,7 +24,7 @@ export default function ItineraryAgenda({ itinerary, showLink }) {
             </div>
             <div className="agenda-acts">
               {d.title && <div className="agenda-title">{d.title}</div>}
-              {(d.activities || []).map((a, i) => (
+              {[...(d.activities || [])].sort((x, y) => (x.time || "99:99").localeCompare(y.time || "99:99")).map((a, i) => (
                 <div key={i} className="agenda-act">
                   <span className="agenda-time"><Clock size={12} /> {a.time || "—"}</span>
                   <div>

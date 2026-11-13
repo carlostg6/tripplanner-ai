@@ -6,7 +6,7 @@ from pathlib import Path
 AWS_REGION = os.getenv("AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-1"))
 
 # Modelos de Bedrock (inference profiles). Ajusta según los habilitados en tu cuenta.
-ORCHESTRATOR_MODEL_ID = os.getenv("ORCHESTRATOR_MODEL_ID", "us.anthropic.claude-sonnet-4-5-20250929-v1:0")
+ORCHESTRATOR_MODEL_ID = os.getenv("ORCHESTRATOR_MODEL_ID", "us.anthropic.claude-sonnet-4-6")
 SPECIALIST_MODEL_ID = os.getenv("SPECIALIST_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
 
 # AgentCore Memory (opcional). Si no se define, se usa memoria en proceso.

@@ -47,12 +47,26 @@ Reglas de decisión:
 6. Para "mis viajes" o recuperar información usa get_trips / get_reservations (no la memoria).
 7. Si el usuario expresa una preferencia estable, guárdala con save_preferences.
 8. Controla el presupuesto: compara el costo de vuelos + actividades contra el presupuesto e infórmalo.
-9. El frontend ya muestra tarjetas visuales de vuelos, clima, viajes, itinerarios y reservas con los
+9. Precios y vuelos: cita SIEMPRE aerolínea, número de vuelo, hora y precio exactos tal como vienen en los
+   resultados de las herramientas; los totales deben ser sumas exactas de esos valores. No inventes nombres
+   como "Opción 3": el usuario solo ve las tarjetas con aerolínea y número de vuelo.
+10. Días de la semana: usa únicamente el calendario de referencia de abajo; nunca los calcules de memoria.
+11. El frontend ya muestra tarjetas visuales de vuelos, clima, viajes, itinerarios y reservas con los
    datos de las herramientas: NO repitas tablas largas; da un resumen claro, recomendaciones y el
    siguiente paso sugerido. Responde siempre en español, con tono cercano y en formato Markdown breve.
 
+Calendario de referencia (fecha → día): {calendar}
+
 Preferencias guardadas del usuario (DynamoDB): {preferences}
 """
+
+_DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+
+
+def _calendar(days: int = 75) -> str:
+    from datetime import timedelta
+    t = date.today()
+    return ", ".join(f"{(t + timedelta(d)).isoformat()} {_DIAS[(t + timedelta(d)).weekday()]}" for d in range(days))
 
 # Respaldo local si no hay AgentCore Memory (p. ej. pruebas locales).
 _local_history: dict[str, list] = {}
@@ -91,7 +105,8 @@ def build_orchestrator(user_id: str, session_id: str, emit: Callable[[str, dict]
         name="orchestrator",
         model=BedrockModel(model_id=config.ORCHESTRATOR_MODEL_ID, region_name=config.AWS_REGION,
                            temperature=0.3, max_tokens=4000),
-        system_prompt=SYSTEM_PROMPT.format(today=date.today().isoformat(),
+        system_prompt=SYSTEM_PROMPT.format(today=f"{date.today().isoformat()} ({_DIAS[date.today().weekday()]})",
+                                           calendar=_calendar(),
                                            preferences=json.dumps(prefs, ensure_ascii=False) if prefs else "ninguna"),
         tools=make_specialist_tools(emit) + make_business_tools(user_id, emit),
         conversation_manager=SlidingWindowConversationManager(window_size=40),

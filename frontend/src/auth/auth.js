@@ -18,7 +18,12 @@ function getPool() {
 
 const MOCK_KEY = "tp_mock_user";
 
-export function signUp(email, password, name) {
+/** El correo es el usuario: se normaliza (minúsculas, sin espacios) para que
+ *  "Carlos@x.com" y "carlos@x.com" sean siempre la misma cuenta. */
+const norm = (email) => (email || "").trim().toLowerCase();
+
+export function signUp(rawEmail, password, name) {
+  const email = norm(rawEmail);
   if (config.mock) return Promise.resolve();
   const attrs = [new CognitoUserAttribute({ Name: "email", Value: email })];
   if (name) attrs.push(new CognitoUserAttribute({ Name: "name", Value: name }));
@@ -27,7 +32,8 @@ export function signUp(email, password, name) {
   );
 }
 
-export function confirmSignUp(email, code) {
+export function confirmSignUp(rawEmail, code) {
+  const email = norm(rawEmail);
   if (config.mock) return Promise.resolve();
   const user = new CognitoUser({ Username: email, Pool: getPool() });
   return new Promise((resolve, reject) =>
@@ -35,7 +41,8 @@ export function confirmSignUp(email, code) {
   );
 }
 
-export function signIn(email, password) {
+export function signIn(rawEmail, password) {
+  const email = norm(rawEmail);
   if (config.mock) {
     const u = { sub: "mock-user", email, name: email.split("@")[0] };
     localStorage.setItem(MOCK_KEY, JSON.stringify(u));

@@ -1,8 +1,10 @@
 ﻿# Paso 2: Orchestrator + Flight + Weather (con MCPs) en Amazon Bedrock AgentCore Runtime.
 # Usa el Starter Toolkit de Python dentro de un entorno virtual propio (no choca con la CLI npm @aws/agentcore).
 # Uso:  .\scripts\windows\2-deploy-agent.ps1 [-Profile tripplanner] [-Region us-east-1] [-CreateMemory]
-param([string]$Profile = "tripplanner", [string]$Region = "us-east-1", [string]$Stack = "tripplanner-backend",
-      [switch]$CreateMemory)
+param([string]$Profile = "tripplanner", [string]$Region = "us-east-1", [string]$Stack = "tripplanner-ai",
+      [switch]$CreateMemory,
+      [string]$OrchestratorModel = "us.anthropic.claude-sonnet-4-6",
+      [string]$SpecialistModel = "us.anthropic.claude-haiku-4-5-20251001-v1:0")
 . "$PSScriptRoot\_common.ps1"
 Assert-Command python "Instala Python 3.12+ (python.org) y marca 'Add to PATH'."
 Use-AwsProfile $Profile
@@ -43,8 +45,8 @@ try {
 
     & $ac deploy --auto-update-on-conflict `
         --env "TOOL_FUNCTIONS=$tools" --env "MEMORY_ID=$memoryId" `
-        --env "ORCHESTRATOR_MODEL_ID=us.anthropic.claude-sonnet-4-5-20250929-v1:0" `
-        --env "SPECIALIST_MODEL_ID=us.anthropic.claude-haiku-4-5-20251001-v1:0"
+        --env "ORCHESTRATOR_MODEL_ID=$OrchestratorModel" `
+        --env "SPECIALIST_MODEL_ID=$SpecialistModel"
     if ($LASTEXITCODE -ne 0) { throw "agentcore deploy falló" }
 
     $info = & $py -c @"
@@ -57,6 +59,18 @@ print(a['aws']['execution_role']); print((a.get('bedrock_agentcore') or {}).get(
     $roleName = $roleArn.Split("/")[-1]
     aws iam attach-role-policy --role-name $roleName --policy-arn $policyArn
     if ($LASTEXITCODE -ne 0) { throw "No se pudo adjuntar la política al rol $roleName" }
+    if ($memoryId) {
+        # Permiso de mínimo privilegio para usar SOLO esta memoria de AgentCore.
+        $acct = aws sts get-caller-identity --query Account --output text
+        $memPolicy = @{ Version = "2012-10-17"; Statement = @(@{ Sid = "TripPlannerMemoryAccess"; Effect = "Allow";
+            Action = @("bedrock-agentcore:CreateEvent","bedrock-agentcore:GetEvent","bedrock-agentcore:ListEvents",
+                       "bedrock-agentcore:DeleteEvent","bedrock-agentcore:ListSessions","bedrock-agentcore:RetrieveMemoryRecords",
+                       "bedrock-agentcore:ListMemoryRecords","bedrock-agentcore:GetMemoryRecord","bedrock-agentcore:GetMemory");
+            Resource = "arn:aws:bedrock-agentcore:${Region}:${acct}:memory/$memoryId" }) } | ConvertTo-Json -Depth 6
+        $tmp = Join-Path $env:TEMP "tp-memory-policy.json"
+        [IO.File]::WriteAllText($tmp, $memPolicy)
+        aws iam put-role-policy --role-name $roleName --policy-name TripPlannerMemoryAccess --policy-document "file://$tmp"
+    }
     Set-Content ".agent_arn" $agentArn
     Write-Host "`n✅ Agente desplegado." -ForegroundColor Green
     Write-Host "Rol: $roleName (con política $policyArn)"

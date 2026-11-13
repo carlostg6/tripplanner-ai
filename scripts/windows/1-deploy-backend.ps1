@@ -1,6 +1,6 @@
 ﻿# Paso 1: backend serverless (Cognito, API Gateway, Lambdas, DynamoDB, S3, CloudFront, IAM).
 # Uso:  .\scripts\windows\1-deploy-backend.ps1 [-Profile tripplanner] [-Region us-east-1]
-param([string]$Profile = "tripplanner", [string]$Region = "us-east-1", [string]$Stack = "tripplanner-backend")
+param([string]$Profile = "tripplanner", [string]$Region = "us-east-1", [string]$Stack = "tripplanner-ai")
 . "$PSScriptRoot\_common.ps1"
 Assert-Command sam "Instala AWS SAM CLI: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html"
 Use-AwsProfile $Profile

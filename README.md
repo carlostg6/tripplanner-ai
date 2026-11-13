@@ -45,9 +45,9 @@ tripplanner-ai/
 # 1. Backend
 cd backend && sam build && sam deploy --guided
 # 2. Agentes
-cd ../agent && pip install -r requirements-dev.txt && ./scripts/deploy_agent.sh tripplanner-backend us-east-1
+cd ../agent && pip install -r requirements-dev.txt && ./scripts/deploy_agent.sh tripplanner-ai us-east-1
 # 3. Frontend
-cd .. && AGENT_RUNTIME_ARN=<arn> ./scripts/deploy_frontend.sh tripplanner-backend us-east-1
+cd .. && AGENT_RUNTIME_ARN=<arn> ./scripts/deploy_frontend.sh tripplanner-ai us-east-1
 ```
 
 La guía completa está en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
