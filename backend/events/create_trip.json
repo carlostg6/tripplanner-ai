@@ -1,0 +1,14 @@
+{
+  "source": "agent",
+  "userId": "local-test-user",
+  "body": {
+    "origin": "Bogotá",
+    "destination": "Cartagena",
+    "startDate": "2026-12-11",
+    "endDate": "2026-12-14",
+    "travelers": 3,
+    "budget": 5000000,
+    "currency": "COP",
+    "interests": ["playa", "historia"]
+  }
+}
