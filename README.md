@@ -38,7 +38,7 @@ tripplanner-ai/
 | Memoria (3 mecanismos) ≠ persistencia | `orchestrator.py`, `scripts/create_memory.py` |
 | Seguridad (IAM mínimo, JWT, CORS, throttling, validación, sin tarjetas) | `template.yaml`, `validation.py`, [§7](docs/DOCUMENTACION_TECNICA.md#7-seguridad) |
 | Frontend en S3 (+ CloudFront) | `template.yaml`, `scripts/deploy_frontend.sh` |
-| Documentación y demo | [`docs/`](docs) |
+| Documentación, evidencias y demo | [`docs/`](docs) · [Evidencias](docs/EVIDENCIAS.md) |
 
 ## Inicio rápido
 
