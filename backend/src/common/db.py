@@ -115,6 +115,19 @@ def update(user_id, sk, fields: dict):
     return resp["Attributes"]
 
 
+def delete(user_id, sk):
+    """Elimina un elemento del usuario; 404 si no existe. Devuelve el elemento borrado."""
+    from botocore.exceptions import ClientError
+    try:
+        resp = table().delete_item(Key={"PK": user_pk(user_id), "SK": sk},
+                                   ConditionExpression="attribute_exists(PK)", ReturnValues="ALL_OLD")
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            raise ApiError(404, "NOT_FOUND", "El recurso no existe.")
+        raise
+    return resp.get("Attributes")
+
+
 def require_trip(user_id, trip_id):
     if not trip_id or not isinstance(trip_id, str) or len(trip_id) > 64:
         raise ApiError(400, "VALIDATION_ERROR", "tripId inválido.")

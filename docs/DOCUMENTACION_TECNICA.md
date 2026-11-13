@@ -146,6 +146,7 @@ Cada cambio de estado queda registrado en `statusHistory`.
 | GET | `/reservations` | GetReservations | query `tripId?, status?, type?` | `200 {reservations[], count}` |
 | GET | `/reservations/{reservationId}` | GetReservations | — | `200 {reservation}` |
 | PUT | `/reservations/{reservationId}` | UpdateReservation | `{status?, title?, amount?, ..., tripId?}` (`tripId` reasocia la reserva a otro viaje) | `200 {reservation}` |
+| DELETE | `/reservations/{reservationId}` | DeleteReservation | — | `200 {deleted: true, reservation}` · `409` si está CONFIRMADA |
 
 ### Errores
 
@@ -180,6 +181,7 @@ Todos los errores tienen la misma forma:
 | CreateReservation | `handlers.reservations.create_reservation` | Registra una reserva asociada a un viaje | `type` ∈ {FLIGHT, HOTEL, ACTIVITY}; `status` por defecto `SIMULADA`; `CONFIRMADA` exige proveedor; sin datos de pago | `GetItem`, `PutItem` |
 | GetReservations | `handlers.reservations.get_reservations` | Lista o detalle, con filtros por viaje, estado o tipo | Pertenencia al usuario | `GetItem`, `Query` (+GSI1) |
 | UpdateReservation | `handlers.reservations.update_reservation` | Actualiza datos, estado o viaje asociado | Transiciones permitidas; registra `statusHistory` | `GetItem`, `UpdateItem` |
+| DeleteReservation | `handlers.reservations.delete_reservation` | Elimina una reserva del usuario | Pertenencia al usuario; una reserva `CONFIRMADA` por un proveedor real no se elimina (409) | `GetItem`, `DeleteItem` |
 | GetProfile / UpdateProfile | `handlers.users.*` | Perfil del usuario | Longitudes; idioma ∈ {ES, EN} | `GetItem`, `PutItem` (+`UpdateItem`) |
 | GetPreferences / SavePreferences | `handlers.users.*` | Preferencias de viaje | Listas ≤ 20 elementos; enumeraciones | `GetItem` (+`PutItem`) |
 | PostConfirmation | `handlers.users.post_confirmation` | Trigger de Cognito que crea el perfil | Nunca bloquea el registro | `GetItem`, `PutItem` |
@@ -209,12 +211,15 @@ Las Tools están definidas en `agent/tripplanner/business_tools.py`. Cada una in
 | `update_itinerary` | **UpdateItinerary** | trip_id, days[], summary? | `tripplanner-UpdateItinerary` | `itinerary` |
 | `create_reservation` | **CreateReservation** | trip_id, type, title, provider?, start_datetime?, end_datetime?, amount?, currency?, quantity?, status?, details? | `tripplanner-CreateReservation` | `reservation` |
 | `get_reservations` | **GetReservations** | trip_id?, status?, type? | `tripplanner-GetReservations` | `reservations` |
-| `update_reservation` | **UpdateReservation** | reservation_id, status?, title?, amount?, ..., trip_id? | `tripplanner-UpdateReservation` | `reservation` |
+| `update_reservation` | **UpdateReservation** | reservation_id, status?, title?, provider?, amount?, ..., trip_id? | `tripplanner-UpdateReservation` | `reservation` |
+| `delete_reservation` | *(adicional)* DeleteReservation | reservation_id | `tripplanner-DeleteReservation` | `reservation_deleted` |
 | `save_preferences` | *(adicional)* | activity_types?, dietary_restrictions?, budget_per_day?, travel_pace?, ... | `tripplanner-SavePreferences` | `preferences` |
 | `flight_specialist` | → Flight Agent | request (texto) | MCP de vuelos | `flights` |
 | `weather_specialist` | → Weather Agent | request (texto) | MCP de clima | `weather` |
 
 **Ciclo de una Tool** (Figura 2 del enunciado): el usuario escribe "Crea mi viaje" → el Orchestrator decide usar `create_trip` → la Tool hace `lambda.invoke` → la Lambda valida y escribe en DynamoDB → el resultado (`tripId`, estado) vuelve al agente → el frontend recibe el evento `ui:trip` y dibuja la tarjeta.
+
+**Gestión de reservas por chat:** el usuario puede crear, modificar y eliminar reservas conversando. Para eliminar, el Orchestrator primero consulta las reservas (`get_reservations`), muestra cuáles se borrarán y solo llama a `delete_reservation` cuando el usuario lo confirma. Desde la pantalla *Reservas* (canal 1) también se puede editar y eliminar, con un paso de confirmación.
 
 Si la Lambda devuelve un error (4xx), la Tool responde `{"ok": false, ...}` en lugar de lanzar una excepción. Así el agente puede explicar el problema o corregir los datos.
 
@@ -290,7 +295,7 @@ Además, las preferencias guardadas en DynamoDB se inyectan en el prompt del Orc
 
 | Requisito | Implementación |
 |---|---|
-| IAM con mínimo privilegio | Cada Lambda tiene su propia política con solo las acciones que usa sobre la tabla o el índice. El rol de AgentCore recibe solo `lambda:InvokeFunction` sobre las 10 Lambdas de las Tools (`AgentToolsInvokePolicy`), sin acceso a DynamoDB, y una política `TripPlannerMemoryAccess` limitada a la memoria del proyecto. |
+| IAM con mínimo privilegio | Cada Lambda tiene su propia política con solo las acciones que usa sobre la tabla o el índice. El rol de AgentCore recibe solo `lambda:InvokeFunction` sobre las 11 Lambdas de las Tools (`AgentToolsInvokePolicy`), sin acceso a DynamoDB, y una política `TripPlannerMemoryAccess` limitada a la memoria del proyecto. |
 | Sin credenciales en el frontend | El navegador solo maneja tokens de Cognito del usuario: cliente público sin secreto y flujo SRP. No hay claves de AWS. |
 | Validación en Lambda | `common/validation.py`: tipos, rangos, fechas, enumeraciones, transiciones de estado y tamaños. |
 | Control de acceso por usuario | La PK es siempre `USER#<sub del JWT>`. Un recurso ajeno responde 404. Hay pruebas automáticas que lo verifican. |

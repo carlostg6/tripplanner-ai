@@ -1,4 +1,4 @@
-"""Lambdas de reservas: CreateReservation, GetReservations, UpdateReservation.
+"""Lambdas de reservas: CreateReservation, GetReservations, UpdateReservation, DeleteReservation.
 
 Reservas SIMULADAS pero persistentes. Estados: SIMULADA | PENDIENTE | CONFIRMADA.
 CONFIRMADA exige `providerReference` (solo si se integra un proveedor real).
@@ -85,3 +85,22 @@ def update_reservation(req):
         data["statusHistory"] = list(current.get("statusHistory", [])) + [{"status": new_status, "at": db.now_iso()}]
     item = db.update(req.user_id, f"RES#{res_id}", data)
     return 200, {"reservation": _out(item)}
+
+
+@handler
+def delete_reservation(req):
+    """Elimina una reserva del usuario. Solo el dueño puede borrarla (la PK es su `sub`).
+
+    Una reserva CONFIRMADA por un proveedor real no se borra: primero debe cancelarse con el proveedor.
+    """
+    res_id = (req.path or {}).get("reservationId") or req.body.get("reservationId")
+    if not res_id or not isinstance(res_id, str) or len(res_id) > 64:
+        raise ApiError(400, "VALIDATION_ERROR", "Falta reservationId.")
+    current = db.get(req.user_id, f"RES#{res_id}")
+    if not current:
+        raise ApiError(404, "RESERVATION_NOT_FOUND", "La reserva no existe o no te pertenece.")
+    if current.get("status") == "CONFIRMADA":
+        raise ApiError(409, "CONFIRMED_RESERVATION",
+                       "Una reserva confirmada por un proveedor real no se puede eliminar desde TripPlanner.")
+    db.delete(req.user_id, f"RES#{res_id}")
+    return 200, {"deleted": True, "reservation": _out(current)}

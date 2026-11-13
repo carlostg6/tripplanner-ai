@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, errorText } from "../api/api";
 import { Alert, Field, Modal } from "./ui";
@@ -23,6 +24,20 @@ export default function ReserveModal({ onClose, onSaved, initial = {}, existing,
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
+  const [confirmDel, setConfirmDel] = useState(false);
+
+  async function remove() {
+    setBusy(true);
+    setErr("");
+    try {
+      await api.deleteReservation(existing.reservationId);
+      onSaved?.(null);
+      onClose();
+    } catch (e2) {
+      setErr(errorText(e2));
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     api.listTrips().then((r) => {
@@ -103,9 +118,28 @@ export default function ReserveModal({ onClose, onSaved, initial = {}, existing,
         </div>
         <Field label="Notas"><textarea rows={2} value={f.notes} onChange={set("notes")} maxLength={1000} /></Field>
         <p className="small muted">🔒 TripPlanner no solicita ni guarda datos de tarjetas o pagos.</p>
+        {confirmDel && (
+          <Alert kind="error">
+            ¿Eliminar definitivamente “{existing.title}” ({existing.confirmationCode})? Esta acción no se puede deshacer.
+          </Alert>
+        )}
         <div className="modal-actions">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn" disabled={busy || !trips?.length}>{busy ? "Guardando…" : "Guardar reserva"}</button>
+          {existing && !confirmDel && (
+            <button type="button" className="btn btn-danger push-left" disabled={busy} onClick={() => setConfirmDel(true)}>
+              <Trash2 size={14} /> Eliminar
+            </button>
+          )}
+          {confirmDel ? (
+            <>
+              <button type="button" className="btn btn-ghost" onClick={() => setConfirmDel(false)}>No, conservar</button>
+              <button type="button" className="btn btn-danger" disabled={busy} onClick={remove}>{busy ? "Eliminando…" : "Sí, eliminar"}</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+              <button className="btn" disabled={busy || !trips?.length}>{busy ? "Guardando…" : "Guardar reserva"}</button>
+            </>
+          )}
         </div>
       </form>
     </Modal>

@@ -56,6 +56,7 @@ export const api = {
   listReservations: (q) => request("GET", "/reservations", null, q),
   createReservation: (b) => request("POST", "/reservations", b),
   updateReservation: (id, b) => request("PUT", `/reservations/${encodeURIComponent(id)}`, b),
+  deleteReservation: (id) => request("DELETE", `/reservations/${encodeURIComponent(id)}`),
 };
 
 export function errorText(e) {

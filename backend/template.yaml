@@ -118,7 +118,7 @@ Resources:
           - !Sub "https://${FrontendDistribution.DomainName}"
           - !Ref DevOrigin
         AllowHeaders: [authorization, content-type]
-        AllowMethods: [GET, POST, PUT, OPTIONS]
+        AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
         MaxAge: 600
       DefaultRouteSettings:
         ThrottlingRateLimit: !Ref ThrottlingRate
@@ -253,6 +253,19 @@ Resources:
       Events:
         Api: { Type: HttpApi, Properties: { ApiId: !Ref TripPlannerApi, Path: "/reservations/{reservationId}", Method: PUT } }
 
+  DeleteReservationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-DeleteReservation"
+      Handler: handlers.reservations.delete_reservation
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:DeleteItem]
+              Resource: !GetAtt TripPlannerTable.Arn
+      Events:
+        Api: { Type: HttpApi, Properties: { ApiId: !Ref TripPlannerApi, Path: "/reservations/{reservationId}", Method: DELETE } }
+
   # ───────────────────────────── Lambdas: Usuario y preferencias ─────────────────────────────
   ProfileFunction:
     Type: AWS::Serverless::Function
@@ -344,6 +357,7 @@ Resources:
               - !GetAtt CreateReservationFunction.Arn
               - !GetAtt GetReservationsFunction.Arn
               - !GetAtt UpdateReservationFunction.Arn
+              - !GetAtt DeleteReservationFunction.Arn
               - !GetAtt GetPreferencesFunction.Arn
               - !GetAtt PutPreferencesFunction.Arn
 
@@ -446,4 +460,4 @@ Outputs:
     Value: !Ref AgentToolsInvokePolicy
   ToolFunctionNames:
     Description: Nombres para las variables de entorno del agente
-    Value: !Sub "CreateTrip=${CreateTripFunction},GetTrips=${GetTripsFunction},UpdateTrip=${UpdateTripFunction},CreateItinerary=${CreateItineraryFunction},UpdateItinerary=${UpdateItineraryFunction},CreateReservation=${CreateReservationFunction},GetReservations=${GetReservationsFunction},UpdateReservation=${UpdateReservationFunction},GetPreferences=${GetPreferencesFunction},SavePreferences=${PutPreferencesFunction}"
+    Value: !Sub "CreateTrip=${CreateTripFunction},GetTrips=${GetTripsFunction},UpdateTrip=${UpdateTripFunction},CreateItinerary=${CreateItineraryFunction},UpdateItinerary=${UpdateItineraryFunction},CreateReservation=${CreateReservationFunction},GetReservations=${GetReservationsFunction},UpdateReservation=${UpdateReservationFunction},DeleteReservation=${DeleteReservationFunction},GetPreferences=${GetPreferencesFunction},SavePreferences=${PutPreferencesFunction}"

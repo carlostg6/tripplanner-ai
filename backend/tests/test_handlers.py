@@ -172,3 +172,18 @@ def test_unauthenticated(h):
     assert s == 401
     s, _ = call(h.t.get_trips, {"foo": "bar"})
     assert s == 400
+
+
+def test_delete_reservation(h):
+    trip = new_trip(h)
+    s, b = call(h.r.create_reservation, agent_event(USER_A, {"tripId": trip["tripId"], "type": "FLIGHT", "title": "Vuelo"}))
+    rid = b["reservation"]["reservationId"]
+    # otro usuario no puede borrarla
+    s, _ = call(h.r.delete_reservation, api_event(USER_B, path={"reservationId": rid}))
+    assert s == 404
+    s, b = call(h.r.delete_reservation, agent_event(USER_A, {"reservationId": rid}))
+    assert s == 200 and b["deleted"] and b["reservation"]["reservationId"] == rid
+    s, b = call(h.r.get_reservations, api_event(USER_A, query={"tripId": trip["tripId"]}))
+    assert b["count"] == 0
+    s, _ = call(h.r.delete_reservation, api_event(USER_A, path={"reservationId": rid}))
+    assert s == 404

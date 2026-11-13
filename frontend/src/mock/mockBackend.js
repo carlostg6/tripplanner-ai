@@ -68,6 +68,7 @@ export async function mockApi(method, path, body = {}, query = {}) {
   } else if (seg[0] === "reservations") {
     const r = db.res[seg[1]];
     if (!r) throw err(404, "RESERVATION_NOT_FOUND", "La reserva no existe.");
+    if (method === "DELETE") { delete db.res[seg[1]]; save(db); return { deleted: true, reservation: r }; }
     if (body.status === "CONFIRMADA" && !r.providerReference)
       throw err(409, "CONFIRMATION_REQUIRES_PROVIDER", "Solo un proveedor real puede confirmar la reserva.");
     if (body.tripId) body.tripDestination = db.trips[body.tripId]?.destination;

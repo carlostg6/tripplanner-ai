@@ -199,3 +199,7 @@ section { display: flex; flex-direction: column; }
 .bubble.md table { border-collapse: collapse; margin: .5rem 0; font-size: .88rem; }
 .bubble.md th, .bubble.md td { border: 1px solid var(--line); padding: .3rem .6rem; text-align: left; }
 .bubble.md th { background: #f3f6fc; }
+
+.btn-danger { background: #dc2626; } .btn-danger:hover { background: #b91c1c; }
+.push-left { margin-right: auto; }
+.deleted-card { border-color: #fecaca; background: #fff7f7; } .deleted-card .card-title { color: var(--red); margin-bottom: .2rem; }

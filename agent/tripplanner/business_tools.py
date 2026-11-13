@@ -140,14 +140,30 @@ def make_business_tools(user_id: str, emit: Callable[[str, dict], None]):
                    query=_clean({"tripId": trip_id, "status": status, "type": type}))
 
     @tool
-    def update_reservation(reservation_id: str, status: str = "", title: str = "", amount: Optional[float] = None,
-                           start_datetime: str = "", end_datetime: str = "", quantity: Optional[int] = None,
-                           trip_id: str = "", notes: str = "") -> str:
-        """UpdateReservation: actualiza una reserva o su estado (SIMULADA ↔ PENDIENTE) o la asocia a otro viaje."""
-        body = _clean({"status": status, "title": title, "amount": amount, "startDateTime": start_datetime,
-                       "endDateTime": end_datetime, "quantity": quantity, "tripId": trip_id, "notes": notes})
+    def update_reservation(reservation_id: str, status: str = "", title: str = "", provider: str = "",
+                           amount: Optional[float] = None, start_datetime: str = "", end_datetime: str = "",
+                           quantity: Optional[int] = None, trip_id: str = "", notes: str = "") -> str:
+        """UpdateReservation: modifica una reserva existente (solo los campos enviados).
+
+        Permite cambiar título, proveedor, fechas/horas (ISO 8601), valor, cantidad de personas, notas,
+        el estado (SIMULADA ↔ PENDIENTE) o asociarla a otro viaje (trip_id).
+        Usa get_reservations para obtener el reservation_id.
+        """
+        body = _clean({"status": status, "title": title, "provider": provider, "amount": amount,
+                       "startDateTime": start_datetime, "endDateTime": end_datetime, "quantity": quantity,
+                       "tripId": trip_id, "notes": notes})
         return run("UpdateReservation", "reservation", lambda b: b["reservation"],
                    path={"reservationId": reservation_id}, body=body)
+
+    @tool
+    def delete_reservation(reservation_id: str) -> str:
+        """DeleteReservation: elimina definitivamente una reserva del usuario.
+
+        Úsala SOLO después de que el usuario confirme explícitamente qué reserva(s) borrar.
+        Usa get_reservations para obtener los reservation_id. Para borrar varias, llámala una vez por reserva.
+        """
+        return run("DeleteReservation", "reservation_deleted", lambda b: b["reservation"],
+                   path={"reservationId": reservation_id})
 
     @tool
     def save_preferences(activity_types: Optional[list[str]] = None, dietary_restrictions: Optional[list[str]] = None,
@@ -166,7 +182,7 @@ def make_business_tools(user_id: str, emit: Callable[[str, dict], None]):
         return run("SavePreferences", "preferences", lambda b: b["preferences"], body=body)
 
     return [create_trip, get_trips, update_trip, create_itinerary, update_itinerary,
-            create_reservation, get_reservations, update_reservation, save_preferences]
+            create_reservation, get_reservations, update_reservation, delete_reservation, save_preferences]
 
 
 def load_preferences(user_id: str) -> dict:

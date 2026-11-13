@@ -46,6 +46,7 @@ def wired_tools(monkeypatch):
                   "CreateReservation": reservations.create_reservation,
                   "GetReservations": reservations.get_reservations,
                   "UpdateReservation": reservations.update_reservation,
+                  "DeleteReservation": reservations.delete_reservation,
                   "GetPreferences": users.get_preferences, "SavePreferences": users.put_preferences}
 
         def fake_invoke(name, user_id, body=None, path=None, query=None):
@@ -65,7 +66,7 @@ def call(t, **kw):
 
 def test_business_tools_demo_flow(wired_tools):
     tools, events, bt = wired_tools
-    assert len(tools) == 9
+    assert len(tools) == 10
     r = call(tools["create_trip"], origin="Bogotá", destination="Cartagena", start_date=START, end_date=END,
              travelers=3, budget=5000000)
     assert r["ok"], r
@@ -154,3 +155,16 @@ def test_streaming_protocol(monkeypatch):
     async def collect2():
         return [e async for e in main.invoke({"prompt": "hola"}, ctx_noauth)]
     assert asyncio.run(collect2())[0]["type"] == "error"
+
+
+def test_update_and_delete_reservation_tools(wired_tools):
+    tools, events, _ = wired_tools
+    trip_id = call(tools["create_trip"], origin="Bogotá", destination="Cartagena", start_date=START,
+                   end_date=END, travelers=3)["trip"]["tripId"]
+    rid = call(tools["create_reservation"], trip_id=trip_id, type="HOTEL", title="Hotel Centro")["reservation"]["reservationId"]
+    r = call(tools["update_reservation"], reservation_id=rid, provider="Hotel Charleston", amount=900000, status="PENDIENTE")
+    assert r["ok"] and r["reservation"]["provider"] == "Hotel Charleston" and r["reservation"]["status"] == "PENDIENTE"
+    r = call(tools["delete_reservation"], reservation_id=rid)
+    assert r["ok"] and r["deleted"] and events[-1][0] == "reservation_deleted"
+    assert call(tools["get_reservations"])["count"] == 0
+    assert call(tools["delete_reservation"], reservation_id=rid)["status"] == 404

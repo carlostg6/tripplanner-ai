@@ -1,4 +1,4 @@
-import { Heart } from "lucide-react";
+import { Heart, Trash2 } from "lucide-react";
 import FlightResults from "./FlightResults";
 import ItineraryAgenda from "./ItineraryAgenda";
 import ReservationList from "./ReservationList";
@@ -32,7 +32,14 @@ export default function AgentRenderer({ event }) {
       return <ItineraryAgenda itinerary={data} showLink />;
     case "reservation":
       return <ReservationList reservations={[data]} title="Reserva registrada" />;
-    case "reservations":
+    case "reservation_deleted":
+      return (
+        <div className="card agent-card deleted-card">
+          <div className="card-title"><Trash2 size={18} /><span>Reserva eliminada</span></div>
+          <div className="small"><s>{data.title}</s> · {data.confirmationCode}</div>
+        </div>
+      );
+        case "reservations":
       return <ReservationList reservations={data.reservations} />;
     case "preferences":
       return (

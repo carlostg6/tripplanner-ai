@@ -6,7 +6,7 @@ Response text/event-stream; cada evento `data:` es un JSON:
   {"type": "start",  "sessionId": ...}
   {"type": "status", "agent": "Flight Agent", "message": "..."}      → indicadores de procesamiento
   {"type": "text",   "delta": "..."}                                  → texto en streaming
-  {"type": "ui",     "component": "flights|weather|trip|trips|trip_detail|itinerary|reservation|reservations|preferences",
+  {"type": "ui",     "component": "flights|weather|trip|trips|trip_detail|itinerary|reservation|reservations|reservation_deleted|preferences",
                      "data": {...}}                                   → Agent-Driven UI
   {"type": "error",  "message": "..."}
   {"type": "done"}
@@ -45,6 +45,7 @@ TOOL_LABELS = {
     "create_reservation": ("Tool CreateReservation", "Registrando la reserva simulada…"),
     "get_reservations": ("Tool GetReservations", "Consultando reservas…"),
     "update_reservation": ("Tool UpdateReservation", "Actualizando la reserva…"),
+    "delete_reservation": ("Tool DeleteReservation", "Eliminando la reserva…"),
     "save_preferences": ("Tool SavePreferences", "Guardando tus preferencias…"),
 }
 

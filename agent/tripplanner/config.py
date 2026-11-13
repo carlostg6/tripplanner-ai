@@ -16,7 +16,7 @@ MEMORY_ID = os.getenv("MEMORY_ID", "")
 # `ToolFunctionNames` del stack SAM: "CreateTrip=fn1,GetTrips=fn2,..."
 _DEFAULT_PREFIX = os.getenv("PROJECT_NAME", "tripplanner")
 TOOL_NAMES = ["CreateTrip", "GetTrips", "UpdateTrip", "CreateItinerary", "UpdateItinerary",
-              "CreateReservation", "GetReservations", "UpdateReservation", "GetPreferences", "SavePreferences"]
+              "CreateReservation", "GetReservations", "UpdateReservation", "DeleteReservation", "GetPreferences", "SavePreferences"]
 
 
 def _parse_tool_functions():
