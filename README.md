@@ -19,6 +19,7 @@ tripplanner-ai/
 │   ├── mcp_servers/         MCP de vuelos y MCP de clima (Open-Meteo)
 │   └── scripts/             create_memory.py · deploy_agent.sh
 ├── frontend/                React + Vite · 6 módulos · Agent-Driven UI
+├── scripts/windows/         Despliegue y diagnóstico en PowerShell (1-2-3, test-models, logs, diag)
 ├── scripts/deploy_frontend.sh
 └── docs/                    Documentación técnica, despliegue, guion de la demo y diagrama
 ```
@@ -40,6 +41,17 @@ tripplanner-ai/
 | Documentación y demo | [`docs/`](docs) |
 
 ## Inicio rápido
+
+**Windows (PowerShell), el camino usado en el despliegue real:**
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\windows\1-deploy-backend.ps1
+.\scripts\windows\2-deploy-agent.ps1 -CreateMemory
+.\scripts\windows\3-deploy-frontend.ps1
+```
+
+**Linux / macOS:**
 
 ```bash
 # 1. Backend

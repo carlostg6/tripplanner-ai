@@ -45,6 +45,7 @@ La fuente editable del diagrama está en `arquitectura.mmd`.
 | **Flight Agent / Weather Agent** | Especialistas. Cada uno es un `Agent` de Strands con sus herramientas MCP. |
 | **MCP de vuelos y MCP de clima** | Herramientas especializadas (servidores MCP stdio). Ver §6.3. |
 | **AgentCore Memory** | Memoria de corto y largo plazo de la conversación. |
+| **Amazon Bedrock (modelos)** | El Orchestrator usa Claude Sonnet 4.6 (`us.anthropic.claude-sonnet-4-6`) y los especialistas usan Claude Haiku 4.5 (`us.anthropic.claude-haiku-4-5-20251001-v1:0`). Se configuran con variables de entorno del runtime. |
 | **API Gateway (HTTP API)** | Expone las operaciones de negocio con autorizador JWT, CORS restringido, *throttling* y logs de acceso. |
 | **AWS Lambda** | Lógica de negocio y validaciones. Hay una función por operación. |
 | **DynamoDB** | Persistencia y fuente de verdad (tabla única con un índice GSI). |
@@ -289,7 +290,7 @@ Además, las preferencias guardadas en DynamoDB se inyectan en el prompt del Orc
 
 | Requisito | Implementación |
 |---|---|
-| IAM con mínimo privilegio | Cada Lambda tiene su propia política con solo las acciones que usa sobre la tabla o el índice. El rol de AgentCore solo recibe `lambda:InvokeFunction` sobre las 10 Lambdas de las Tools (`AgentToolsInvokePolicy`), sin acceso a DynamoDB. |
+| IAM con mínimo privilegio | Cada Lambda tiene su propia política con solo las acciones que usa sobre la tabla o el índice. El rol de AgentCore recibe solo `lambda:InvokeFunction` sobre las 10 Lambdas de las Tools (`AgentToolsInvokePolicy`), sin acceso a DynamoDB, y una política `TripPlannerMemoryAccess` limitada a la memoria del proyecto. |
 | Sin credenciales en el frontend | El navegador solo maneja tokens de Cognito del usuario: cliente público sin secreto y flujo SRP. No hay claves de AWS. |
 | Validación en Lambda | `common/validation.py`: tipos, rangos, fechas, enumeraciones, transiciones de estado y tamaños. |
 | Control de acceso por usuario | La PK es siempre `USER#<sub del JWT>`. Un recurso ajeno responde 404. Hay pruebas automáticas que lo verifican. |
@@ -302,4 +303,15 @@ Además, las preferencias guardadas en DynamoDB se inyectan en el prompt del Orc
 
 ## 8. Instrucciones de ejecución
 
-Ver [DESPLIEGUE.md](DESPLIEGUE.md) (desde cero) y [DEMO.md](DEMO.md) (guion del escenario obligatorio).
+Ver [DESPLIEGUE.md](DESPLIEGUE.md) (desde cero, incluida la ruta de Windows con PowerShell que se usó en el despliegue real) y [DEMO.md](DEMO.md) (guion del escenario obligatorio).
+
+### Despliegue actual
+
+| Recurso | Valor |
+|---|---|
+| Región | `us-east-1` |
+| Stack SAM | `tripplanner-ai` |
+| Frontend | `https://d1hdarfftiq2q8.cloudfront.net` |
+| Tabla DynamoDB | `tripplanner-data` |
+| Runtime AgentCore | `tripplanner_orchestrator` |
+| Memoria AgentCore | `TripPlannerMemory` (estrategias de preferencias, hechos y resúmenes) |

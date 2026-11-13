@@ -2,7 +2,13 @@
 
 ## Windows (PowerShell): ruta rápida
 
-Requisitos: AWS CLI v2 con sesión iniciada (`aws login --profile tripplanner`), **AWS SAM CLI**, **Python 3.12+** y **Node.js 20+**.
+Es el camino con el que se desplegó el proyecto en la cuenta del equipo.
+
+Requisitos:
+- AWS CLI v2 con sesión iniciada (`aws login --region us-east-1 --profile tripplanner`).
+- **AWS SAM CLI** (`winget install --id Amazon.SAM-CLI -e`).
+- **Python 3.10+** y **Node.js 20+**.
+- Acceso en Bedrock a los modelos del agente. Se verifica con `.\scripts\windows\test-models.ps1`.
 
 ```powershell
 cd C:\Users\Carlo\workshop-a2a\tripplanner-ai
@@ -11,6 +17,18 @@ Set-ExecutionPolicy -Scope Process Bypass        # permite ejecutar los scripts 
 .\scripts\windows\2-deploy-agent.ps1 -CreateMemory   # agentes en AgentCore + memoria (~10 min)
 .\scripts\windows\3-deploy-frontend.ps1          # build + publicación del frontend
 ```
+
+Scripts de apoyo:
+
+| Script | Uso |
+|---|---|
+| `test-models.ps1` | Prueba qué modelos de Claude puede invocar la cuenta. Los modelos *Legacy* o no habilitados fallan aquí. |
+| `logs.ps1 [-Minutes 15]` | Guarda los logs del runtime de AgentCore en `agent-logs.txt` para diagnosticar errores del chat. |
+| `diag.ps1` | Muestra los ítems de DynamoDB, los usuarios de Cognito, las últimas peticiones al API y los errores de las Lambdas, en `diag.txt`. |
+
+`2-deploy-agent.ps1` acepta `-OrchestratorModel` y `-SpecialistModel`. Los valores por defecto son `us.anthropic.claude-sonnet-4-6` y `us.anthropic.claude-haiku-4-5-20251001-v1:0`. Además, el script adjunta al rol del runtime:
+- `AgentToolsInvokePolicy`, que solo permite `lambda:InvokeFunction` sobre las Lambdas de las Tools;
+- una política *inline* `TripPlannerMemoryAccess`, que solo da acceso a la memoria creada.
 
 Los scripts toman credenciales temporales del perfil con `aws configure export-credentials`, así que funcionan con sesiones de `aws login`. Al final muestran la URL de la aplicación.
 
@@ -109,6 +127,20 @@ cd backend && sam delete
 La tabla DynamoDB tiene `DeletionPolicy: Retain`, así que hay que borrarla a mano si ya no se necesita.
 
 ## Problemas comunes
+
+Estos problemas aparecieron durante el despliegue real y así se resolvieron:
+
+| Síntoma | Causa | Solución |
+|---|---|---|
+| El chat dice "El asistente tuvo un problema…" y el log muestra `This Model is marked by provider as Legacy` | El modelo configurado quedó obsoleto en Bedrock. | Ejecutar `test-models.ps1` y volver a desplegar con un modelo que responda OK. |
+| El log muestra `… is not available for this account` | El modelo aparece como ACTIVE, pero la cuenta no tiene acceso. | Igual que el caso anterior: elegir un modelo que funcione en la cuenta. |
+| Después de volver a desplegar, el agente sigue usando la configuración vieja | Cada sesión de AgentCore sigue en su contenedor original hasta que se apaga por inactividad (~15 min). | En la app, hacer clic en **Nueva conversación**, que crea un nuevo `sessionId`. |
+| `AccessDeniedException … bedrock-agentcore:ListEvents` | Al rol del runtime le faltaba el permiso de memoria. | Ahora lo agrega `2-deploy-agent.ps1`. El agente sigue funcionando con memoria local si el permiso falta. |
+| Al volver a entrar, *Mis viajes* aparece vacío | Se creó una segunda cuenta: en el User Pool, "Carlos@…" y "carlos@…" eran usuarios distintos. | El frontend ahora pasa el correo a minúsculas. Para corregir una cuenta existente se usa `admin-update-user-attributes`. |
+| `sam deploy` responde "Update of resource type is not permitted" | Ya existía otro stack con el mismo nombre. | Usar un nombre de stack propio: `tripplanner-ai`. |
+| `aws` en PowerShell responde `'charmap' codec can't encode` | Codificación de la consola de Windows. | `$env:PYTHONUTF8="1"` (los scripts ya lo hacen). |
+
+### Otros síntomas
 
 | Síntoma | Solución |
 |---|---|
