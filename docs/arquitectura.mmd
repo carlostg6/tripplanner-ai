@@ -1,0 +1,54 @@
+flowchart TB
+    U([👤 Usuario]) --> FE["<b>Frontend TripPlanner AI</b><br/>React + Vite · HashRouter"]
+    CF["Amazon CloudFront<br/>HTTPS · OAC"] -- sirve --> FE
+    S3[("Amazon S3<br/>bucket privado")] --> CF
+    COG["Amazon Cognito<br/>User Pool (JWT)"]
+    FE -. login SRP / tokens .-> COG
+
+    subgraph C1["CANAL 1 · OPERACIONES DE NEGOCIO (REST/JSON)"]
+      APIGW["Amazon API Gateway (HTTP API)<br/>JWT authorizer · CORS · throttling"]
+      L1["AWS Lambda<br/>CreateTrip · GetTrips · UpdateTrip<br/>CreateItinerary · GetItinerary · UpdateItinerary<br/>CreateReservation · GetReservations · UpdateReservation<br/>Profile · Preferences"]
+      APIGW --> L1
+    end
+
+    subgraph C2["CANAL 2 · INTERACCIÓN AGÉNTICA (HTTP streaming, sin API Gateway)"]
+      subgraph AC["Amazon Bedrock AgentCore Runtime · customJWTAuthorizer (Cognito)"]
+        ORC["<b>Orchestrator Agent</b><br/>Strands · interpreta · decide · coordina"]
+        FA["Flight Agent"]
+        WA["Weather Agent"]
+        TOOLS["Tools de negocio (9)"]
+        MF["MCP de vuelos<br/>search_flights · search_airports"]
+        MW["MCP de clima<br/>get_weather_forecast (Open-Meteo)"]
+        ORC --> FA --> MF
+        ORC --> WA --> MW
+        ORC --> TOOLS
+      end
+      MEM[("AgentCore Memory<br/>corto + largo plazo")]
+      BR["Amazon Bedrock<br/>modelos Claude"]
+      ORC <--> MEM
+      ORC & FA & WA -.-> BR
+    end
+
+    FE -- "HTTPS · REST/JSON<br/>Bearer access token" --> APIGW
+    FE -- "HTTP streaming (SSE)<br/>/runtimes/* vía CloudFront" --> ORC
+    TOOLS -- "lambda:InvokeFunction" --> L1
+
+    DDB[("<b>Amazon DynamoDB</b> · tabla única tripplanner-data<br/>Usuarios · Preferencias · Viajes · Itinerarios · Reservas<br/>GSI1: reservas por viaje")]
+    L1 -- lectura / escritura --> DDB
+    COG -- PostConfirmation --> L1
+
+    IAM["🔒 IAM · roles de mínimo privilegio por Lambda · el rol de AgentCore solo invoca las Lambdas de las Tools · sin credenciales en el navegador"]
+
+    classDef ch1 fill:#e8efff,stroke:#2563eb,color:#0f1e3d
+    classDef ch2 fill:#e3f7f4,stroke:#0d9488,color:#0f1e3d
+    classDef dark fill:#0f1e3d,stroke:#0f1e3d,color:#fff
+    classDef host fill:#fff4d6,stroke:#d97706,color:#7c2d12
+    classDef sec fill:#fff,stroke:#dc2626,color:#991b1b,stroke-dasharray: 5 5
+    class APIGW,L1 ch1
+    class ORC,FA,WA,TOOLS,MF,MW,MEM,BR ch2
+    class FE,DDB,U dark
+    class S3,CF,COG host
+    class IAM sec
+    style C1 fill:#f3f7ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
+    style C2 fill:#f0fbf9,stroke:#0d9488,stroke-width:2px,color:#115e59
+    style AC fill:#ffffff,stroke:#0d9488,stroke-dasharray: 6 4,color:#115e59

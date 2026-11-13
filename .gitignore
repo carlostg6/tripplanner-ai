@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.*.local
+.env.local
+__pycache__/
+*.pyc
+.pytest_cache/
+.aws-sam/
+.venv/
+.bedrock_agentcore/
+.DS_Store
