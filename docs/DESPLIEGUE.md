@@ -1,5 +1,21 @@
 # Despliegue desde cero
 
+## Windows (PowerShell): ruta rápida
+
+Requisitos: AWS CLI v2 con sesión iniciada (`aws login --profile tripplanner`), **AWS SAM CLI**, **Python 3.12+** y **Node.js 20+**.
+
+```powershell
+cd C:\Users\Carlo\workshop-a2a\tripplanner-ai
+Set-ExecutionPolicy -Scope Process Bypass        # permite ejecutar los scripts solo en esta ventana
+.\scripts\windows\1-deploy-backend.ps1           # Cognito, API, Lambdas, DynamoDB, S3, CloudFront (~10 min)
+.\scripts\windows\2-deploy-agent.ps1 -CreateMemory   # agentes en AgentCore + memoria (~10 min)
+.\scripts\windows\3-deploy-frontend.ps1          # build + publicación del frontend
+```
+
+Los scripts toman credenciales temporales del perfil con `aws configure export-credentials`, así que funcionan con sesiones de `aws login`. Al final muestran la URL de la aplicación.
+
+---
+
 ## Requisitos
 
 - Cuenta de AWS con acceso a modelos de **Amazon Bedrock**. Habilita Claude Sonnet y Claude Haiku en la región, o cambia los IDs de modelo en `agent/.env.example`.
