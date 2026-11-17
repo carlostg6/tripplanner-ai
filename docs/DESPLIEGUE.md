@@ -26,7 +26,7 @@ Scripts de apoyo:
 | `logs.ps1 [-Minutes 15]` | Guarda los logs del runtime de AgentCore en `agent-logs.txt` para diagnosticar errores del chat. |
 | `diag.ps1` | Muestra los ítems de DynamoDB, los usuarios de Cognito, las últimas peticiones al API y los errores de las Lambdas, en `diag.txt`. |
 
-`2-deploy-agent.ps1` acepta `-OrchestratorModel` y `-SpecialistModel`. Los valores por defecto son `us.anthropic.claude-sonnet-4-6` y `us.anthropic.claude-haiku-4-5-20251001-v1:0`. Además, el script adjunta al rol del runtime:
+`2-deploy-agent.ps1` acepta `-OrchestratorModel`, `-SpecialistModel` y `-SerpApiKey`. La clave de SerpAPI activa los vuelos reales de Google Flights; si se omite, se toma de `$env:SERPAPI_KEY`, y si está vacía los vuelos son simulados. Nunca se guarda en el repositorio. Para no escribirla en el historial de PowerShell, usa `$env:SERPAPI_KEY = Read-Host "Clave SerpAPI"` antes de desplegar. Los valores por defecto son `us.anthropic.claude-sonnet-4-6` y `us.anthropic.claude-haiku-4-5-20251001-v1:0`. Además, el script adjunta al rol del runtime:
 - `AgentToolsInvokePolicy`, que solo permite `lambda:InvokeFunction` sobre las Lambdas de las Tools;
 - una política *inline* `TripPlannerMemoryAccess`, que solo da acceso a la memoria creada.
 

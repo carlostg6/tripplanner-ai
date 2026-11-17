@@ -1,12 +1,14 @@
 """MCP de vuelos (stdio).
 
-Genera ofertas de vuelo *simuladas pero realistas y deterministas* (misma
-consulta => mismo resultado) a partir de la distancia real entre aeropuertos,
-la antelación de compra, el día de la semana y las aerolíneas que operan cada
-mercado. Cada oferta incluye `source` para que la UI indique que es simulada.
+Proveedor real: Google Flights vía SerpAPI (https://serpapi.com/google-flights-api),
+activo cuando existe la variable de entorno SERPAPI_KEY. Se hace una búsqueda de
+solo ida por trayecto (ida y, si aplica, regreso) y se normaliza al mismo JSON
+que consume la UI. Los resultados se guardan en caché 30 min para ahorrar cuota.
 
-Para usar un proveedor real, implementa `search_real_provider()` y define
-FLIGHT_PROVIDER=<nombre> (ver docs/INTEGRACION_AGENTES.md).
+Respaldo: si no hay clave, SerpAPI falla o no devuelve vuelos, se generan ofertas
+*simuladas pero realistas y deterministas* (distancia real entre aeropuertos,
+antelación, día de la semana y aerolíneas de cada mercado). El campo `simulated`
+y `source` le indican a la UI cuál fuente se usó.
 
 Tools:
   - search_airports(query)
@@ -18,8 +20,11 @@ import math
 import os
 import random
 import sys
+import time
 import unicodedata
 from datetime import date, datetime, timedelta
+
+import httpx
 
 sys.path.insert(0, os.path.dirname(__file__))
 from _compat import Server  # noqa: E402
@@ -131,6 +136,73 @@ def _offers_for_leg(orig, dest, d: date, passengers: int, max_results: int):
     return sorted(unique, key=lambda o: o["departureTime"])
 
 
+SERPAPI_URL = "https://serpapi.com/search.json"
+_CACHE: dict = {}
+_CACHE_TTL = 1800
+
+
+def _serpapi_key() -> str:
+    return os.environ.get("SERPAPI_KEY", "").strip()
+
+
+def _real_leg(orig: str, dest: str, d: date, passengers: int, max_results: int):
+    """Busca un trayecto de solo ida en Google Flights (SerpAPI). Devuelve lista de ofertas o lanza excepción."""
+    key = (orig, dest, d.isoformat(), passengers)
+    hit = _CACHE.get(key)
+    if hit and time.time() - hit[0] < _CACHE_TTL:
+        return hit[1][:max_results]
+    r = httpx.get(SERPAPI_URL, timeout=httpx.Timeout(30.0), params={
+        "engine": "google_flights", "departure_id": orig, "arrival_id": dest,
+        "outbound_date": d.isoformat(), "type": "2", "adults": passengers,
+        "currency": "COP", "hl": "es", "gl": "co", "api_key": _serpapi_key(),
+    })
+    r.raise_for_status()
+    data = r.json()
+    if data.get("error"):
+        raise RuntimeError(f"SerpAPI: {data['error']}")
+    raw = (data.get("best_flights") or []) + (data.get("other_flights") or [])
+    # Google Flights muestra el precio total para todos los pasajeros de la búsqueda.
+    price_is_total = os.environ.get("SERPAPI_PRICE_IS_TOTAL", "true").lower() == "true"
+    offers = []
+    for f in raw:
+        segs = f.get("flights") or []
+        if not segs or not isinstance(f.get("price"), (int, float)):
+            continue
+        first, last = segs[0], segs[-1]
+        fn = (first.get("flight_number") or "").replace(" ", "")
+        code = "".join(ch for ch in fn[:2] if ch.isalnum()).upper() or "XX"
+        total = int(f["price"]) if price_is_total else int(f["price"]) * passengers
+        per = int(round(total / passengers, -2))
+        offers.append({
+            "offerId": f"{fn or code}-{d.strftime('%m%d')}-{len(offers)}",
+            "airline": first.get("airline") or "Aerolínea",
+            "airlineCode": code,
+            "airlineLogo": first.get("airline_logo") or f.get("airline_logo"),
+            "flightNumber": fn or code,
+            "origin": (first.get("departure_airport") or {}).get("id", orig),
+            "destination": (last.get("arrival_airport") or {}).get("id", dest),
+            "departureTime": ((first.get("departure_airport") or {}).get("time") or "").replace(" ", "T"),
+            "arrivalTime": ((last.get("arrival_airport") or {}).get("time") or "").replace(" ", "T"),
+            "durationMinutes": int(f.get("total_duration") or sum(x.get("duration", 0) for x in segs)),
+            "stops": len(f.get("layovers") or []),
+            "cabin": first.get("travel_class") or "Económica",
+            "baggage": "Ver condiciones de la aerolínea",
+            "pricePerPerson": per, "totalPrice": total, "currency": "COP",
+        })
+    if not offers:
+        raise RuntimeError("Google Flights no devolvió vuelos para esa ruta/fecha")
+    offers.sort(key=lambda o: o["departureTime"])
+    _CACHE[key] = (time.time(), offers)
+    return offers[:max_results]
+
+
+def _tag(offers):
+    if offers:
+        min(offers, key=lambda o: o["totalPrice"]).setdefault("tags", []).append("Más económico")
+        min(offers, key=lambda o: o["durationMinutes"]).setdefault("tags", []).append("Más rápido")
+    return offers
+
+
 @mcp.tool()
 def search_airports(query: str) -> str:
     """Busca el código IATA de un aeropuerto a partir del nombre de la ciudad."""
@@ -144,7 +216,7 @@ def search_airports(query: str) -> str:
 @mcp.tool()
 def search_flights(origin: str, destination: str, departure_date: str, return_date: str = "",
                    passengers: int = 1, max_results: int = 5) -> str:
-    """Busca vuelos entre dos ciudades o códigos IATA.
+    """Busca vuelos entre dos ciudades o códigos IATA (Google Flights real si hay SERPAPI_KEY).
 
     Args:
         origin: ciudad o código IATA de origen (ej. "Bogotá" o "BOG").
@@ -175,15 +247,31 @@ def search_flights(origin: str, destination: str, departure_date: str, return_da
     passengers = max(1, min(int(passengers or 1), 9))
     max_results = max(1, min(int(max_results or 5), 8))
 
+    source, simulated, note = "simulado · TripPlanner Flight MCP", True, None
+    outbound = inbound = None
+    if _serpapi_key():
+        try:
+            outbound = _tag(_real_leg(o, d, dep, passengers, max_results))
+            inbound = _tag(_real_leg(d, o, ret, passengers, max_results)) if ret else []
+            source, simulated = "Google Flights (vía SerpAPI)", False
+        except Exception as e:  # noqa: BLE001 — la demo nunca se cae: se usan datos simulados
+            print(f"[flight_mcp] SerpAPI no disponible: {type(e).__name__}: {e}", file=sys.stderr)
+            note = "Google Flights no respondió; se muestran datos simulados."
+            outbound = inbound = None
+    if outbound is None:
+        outbound = _offers_for_leg(o, d, dep, passengers, max_results)
+        inbound = _offers_for_leg(d, o, ret, passengers, max_results) if ret else []
+
     result = {
-        "source": "simulado · TripPlanner Flight MCP",
-        "simulated": True,
+        "source": source,
+        "simulated": simulated,
+        "note": note,
         "origin": {"iata": o, "city": AIRPORTS[o][0]},
         "destination": {"iata": d, "city": AIRPORTS[d][0]},
         "departureDate": dep.isoformat(), "returnDate": ret.isoformat() if ret else None,
         "passengers": passengers, "currency": "COP",
-        "outbound": _offers_for_leg(o, d, dep, passengers, max_results),
-        "inbound": _offers_for_leg(d, o, ret, passengers, max_results) if ret else [],
+        "outbound": outbound,
+        "inbound": inbound,
     }
     if result["outbound"]:
         best_out = min(result["outbound"], key=lambda x: x["totalPrice"])["totalPrice"]

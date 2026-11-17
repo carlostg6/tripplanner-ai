@@ -69,7 +69,7 @@ La fuente editable del diagrama está en `arquitectura.mmd`.
 | La misma Lambda sirve al API y a la Tool | No se duplica lógica. El adaptador `common/http.py` reconoce los eventos de API Gateway (usuario tomado de `claims.sub`) y las invocaciones del agente (`source: "agent"`). Solo el rol de AgentCore puede invocar directamente. |
 | Agents-as-tools | El Orchestrator ve a Flight y Weather como Tools. Cada especialista mantiene su propio prompt, sus herramientas y su contexto aislado. |
 | Agent-Driven UI por eventos | Los resultados estructurados de las herramientas se emiten como eventos `ui` en el mismo stream. El texto del modelo nunca se analiza para dibujar componentes. |
-| MCP de vuelos simulado y determinista | No hay una API de vuelos gratuita y estable. Las ofertas se calculan con la distancia real entre aeropuertos, la antelación, el día de la semana y las aerolíneas de cada mercado. La UI marca la fuente como "simulada", y el diseño permite conectar un proveedor real. |
+| MCP de vuelos: Google Flights real con respaldo simulado | Con `SERPAPI_KEY` configurada, el MCP consulta **Google Flights en tiempo real vía SerpAPI** (una búsqueda de solo ida por trayecto, con caché de 30 min para ahorrar cuota). Si no hay clave, SerpAPI falla o se agota la cuota, genera ofertas simuladas realistas (distancia real, antelación, día de la semana y aerolíneas de cada mercado) para que el flujo nunca se caiga. La tarjeta muestra la fuente: "Google Flights · tiempo real" o "Fuente simulada". |
 | MCP de clima real (Open-Meteo) | Gratuito y sin API key. Para fechas que superan el horizonte de 16 días devuelve una referencia histórica y lo indica. |
 | HashRouter | Evita las reglas de error 403/404 → `index.html` en CloudFront, que de lo contrario ocultarían los errores reales de `/runtimes/*`. |
 
@@ -271,7 +271,7 @@ Flight y Weather son servidores MCP stdio (`agent/mcp_servers/`). Los inicia el 
 
 | MCP | Herramientas | Fuente |
 |---|---|---|
-| Vuelos | `search_flights(origin, destination, departure_date, return_date, passengers, max_results)` y `search_airports(query)` | Generador determinista y realista (marcado como `simulated: true`). Para usar un proveedor real, reemplaza `_offers_for_leg` por una llamada a la API del proveedor, manteniendo el mismo JSON de salida. |
+| Vuelos | `search_flights(origin, destination, departure_date, return_date, passengers, max_results)` y `search_airports(query)` | **Google Flights vía SerpAPI** (`engine=google_flights`, `type=2` por trayecto, `currency=COP`) cuando existe `SERPAPI_KEY`. Respaldo: generador simulado determinista (`simulated: true`). La clave se pasa al runtime como variable de entorno al desplegar; no está en el repositorio ni en el navegador. |
 | Clima | `get_weather_forecast(city, start_date, end_date)` | Open-Meteo: pronóstico hasta 16 días y, para fechas más lejanas, referencia histórica del año anterior |
 
 Si en el taller ya tenías tus propios MCP, solo cambia los `StdioServerParameters` en `specialists.py` (o usa `streamablehttp_client` si son remotos) y el nombre de la herramienta en `extract_tool_results`.

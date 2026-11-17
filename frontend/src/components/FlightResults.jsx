@@ -15,7 +15,9 @@ function FlightCard({ o, cheapest, onReserve, selected, onSelect }) {
   return (
     <div className={`flight-card ${selected ? "selected" : ""}`} onClick={onSelect}>
       <div className="flight-airline">
-        <div className="airline-logo">{o.airlineCode}</div>
+        {o.airlineLogo
+          ? <img className="airline-logo img" src={o.airlineLogo} alt={o.airline} />
+          : <div className="airline-logo">{o.airlineCode}</div>}
         <div>
           <strong>{o.airline}</strong>
           <div className="muted small">{o.flightNumber} · {o.cabin}</div>
@@ -81,8 +83,11 @@ export default function FlightResults({ data, compact }) {
         <Plane size={18} />
         <span>Vuelos {data.origin?.city} <ArrowRight size={14} /> {data.destination?.city}</span>
         <span className="muted small">· {pax} pasajero{pax > 1 ? "s" : ""}</span>
-        {data.simulated && <span className="badge badge-sim" title={data.source}>Fuente simulada</span>}
+        {data.simulated
+          ? <span className="badge badge-sim" title={data.source}>Fuente simulada</span>
+          : <span className="badge badge-conf" title={data.source}>Google Flights · tiempo real</span>}
       </div>
+      {data.note && <div className="callout callout-warn">{data.note}</div>}
       {data.cheapestRoundTripTotal && (
         <div className="callout">Ida y regreso más económico para todos: <strong>{money(data.cheapestRoundTripTotal)}</strong></div>
       )}

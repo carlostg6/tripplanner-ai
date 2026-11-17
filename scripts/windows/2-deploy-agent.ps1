@@ -4,7 +4,10 @@
 param([string]$Profile = "tripplanner", [string]$Region = "us-east-1", [string]$Stack = "tripplanner-ai",
       [switch]$CreateMemory,
       [string]$OrchestratorModel = "us.anthropic.claude-sonnet-4-6",
-      [string]$SpecialistModel = "us.anthropic.claude-haiku-4-5-20251001-v1:0")
+      [string]$SpecialistModel = "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      # Clave de SerpAPI para vuelos reales de Google Flights. Si se omite se toma de $env:SERPAPI_KEY;
+      # vacía = vuelos simulados. Nunca se escribe en el repositorio.
+      [string]$SerpApiKey = $env:SERPAPI_KEY)
 . "$PSScriptRoot\_common.ps1"
 Assert-Command python "Instala Python 3.12+ (python.org) y marca 'Add to PATH'."
 Use-AwsProfile $Profile
@@ -32,6 +35,7 @@ try {
         $memoryId = (($out | Select-String "MEMORY_ID =") -replace ".*MEMORY_ID =\s*", "").Trim()
         if ($memoryId) { Set-Content ".memory_id" $memoryId }
     }
+    Write-Host "Vuelos: $(if ($SerpApiKey) { 'Google Flights real (SerpAPI)' } else { 'simulados (sin SERPAPI_KEY)' })"
     Write-Host "MEMORY_ID: $(if ($memoryId) { $memoryId } else { '(sin memoria AgentCore; usa -CreateMemory)' })"
 
     # PowerShell 5.1 elimina comillas al pasar JSON a ejecutables: se escapan a mano.
@@ -46,7 +50,8 @@ try {
     & $ac deploy --auto-update-on-conflict `
         --env "TOOL_FUNCTIONS=$tools" --env "MEMORY_ID=$memoryId" `
         --env "ORCHESTRATOR_MODEL_ID=$OrchestratorModel" `
-        --env "SPECIALIST_MODEL_ID=$SpecialistModel"
+        --env "SPECIALIST_MODEL_ID=$SpecialistModel" `
+        --env "SERPAPI_KEY=$SerpApiKey"
     if ($LASTEXITCODE -ne 0) { throw "agentcore deploy falló" }
 
     $info = & $py -c @"

@@ -203,3 +203,4 @@ section { display: flex; flex-direction: column; }
 .btn-danger { background: #dc2626; } .btn-danger:hover { background: #b91c1c; }
 .push-left { margin-right: auto; }
 .deleted-card { border-color: #fecaca; background: #fff7f7; } .deleted-card .card-title { color: var(--red); margin-bottom: .2rem; }
+.airline-logo.img { background: #fff; border: 1px solid var(--line); object-fit: contain; padding: 4px; }

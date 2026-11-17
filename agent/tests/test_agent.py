@@ -168,3 +168,56 @@ def test_update_and_delete_reservation_tools(wired_tools):
     assert r["ok"] and r["deleted"] and events[-1][0] == "reservation_deleted"
     assert call(tools["get_reservations"])["count"] == 0
     assert call(tools["delete_reservation"], reservation_id=rid)["status"] == 404
+
+
+def _serp_sample(dep, arr, day):
+    def f(airline, fn, h1, h2, mins, price, lay=0):
+        return {"flights": [{"airline": airline, "flight_number": fn, "travel_class": "Económica",
+                             "departure_airport": {"id": dep, "time": f"{day} {h1}"},
+                             "arrival_airport": {"id": arr, "time": f"{day} {h2}"}, "duration": mins}],
+                "layovers": [{}] * lay, "total_duration": mins, "price": price}
+    return {"best_flights": [f("Avianca", "AV 9520", "06:10", "07:40", 90, 1260000)],
+            "other_flights": [f("LATAM", "LA 4072", "11:05", "12:39", 94, 990000),
+                              f("Wingo", "P5 7140", "15:00", "17:55", 175, 870000, lay=1)]}
+
+
+def test_flight_mcp_serpapi_and_fallback(monkeypatch):
+    sys.path.insert(0, os.path.join(ROOT, "mcp_servers"))
+    import flight_server as fs
+    calls = []
+
+    class R:
+        def __init__(self, d): self.d = d
+        def raise_for_status(self): pass
+        def json(self): return self.d
+
+    def fake_get(url, params, timeout):
+        calls.append(params)
+        return R(_serp_sample(params["departure_id"], params["arrival_id"], params["outbound_date"]))
+
+    monkeypatch.setattr(fs.httpx, "get", fake_get)
+    monkeypatch.setenv("SERPAPI_KEY", "test-key")
+    fs._CACHE.clear()
+    out = json.loads(fs.search_flights("Bogotá", "Cartagena", START, END, 3))
+    assert out["simulated"] is False and "Google Flights" in out["source"]
+    assert [p["departure_id"] for p in calls] == ["BOG", "CTG"] and calls[0]["adults"] == 3
+    o = out["outbound"]
+    assert o[0]["departureTime"] == f"{START}T06:10" and o[0]["flightNumber"] == "AV9520" and o[0]["airlineCode"] == "AV"
+    cheap = next(x for x in o if "Más económico" in x.get("tags", []))
+    assert cheap["airline"] == "Wingo" and cheap["totalPrice"] == 870000 and cheap["pricePerPerson"] == 290000
+    assert next(x for x in o if x["airline"] == "Wingo")["stops"] == 1
+    # caché: segunda búsqueda igual no gasta cuota
+    fs.search_flights("Bogotá", "Cartagena", START, END, 3)
+    assert len(calls) == 2
+
+    # SerpAPI falla -> datos simulados con nota
+    fs._CACHE.clear()
+    def boom(*a, **k): raise fs.httpx.ConnectError("x")
+    monkeypatch.setattr(fs.httpx, "get", boom)
+    out = json.loads(fs.search_flights("Bogotá", "Cartagena", START, END, 3))
+    assert out["simulated"] is True and out["note"] and out["outbound"]
+
+    # Sin clave -> simulado sin llamar a la API
+    monkeypatch.delenv("SERPAPI_KEY")
+    out = json.loads(fs.search_flights("Bogotá", "Cartagena", START, END, 3))
+    assert out["simulated"] is True and out["note"] is None

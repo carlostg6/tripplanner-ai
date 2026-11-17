@@ -9,10 +9,16 @@ devolvieron las herramientas MCP y se emiten como eventos `ui` hacia el frontend
 """
 import json
 import logging
+import os
 import threading
 from typing import Callable
 
 from mcp import StdioServerParameters, stdio_client
+try:
+    from mcp.client.stdio import get_default_environment
+except ImportError:  # versiones antiguas del SDK
+    def get_default_environment():
+        return {k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "LANG", "USER", "SHELL", "TERM")}
 from strands import Agent, tool
 from strands.models import BedrockModel
 from strands.tools.mcp import MCPClient
@@ -45,7 +51,13 @@ def _mcp_client(name: str, script: str) -> MCPClient:
     """Cliente MCP stdio compartido por el contenedor (se inicia una sola vez)."""
     with _lock:
         if name not in _clients:
-            params = StdioServerParameters(command=config.PYTHON, args=[str(config.MCP_DIR / script)])
+            # El SDK de MCP solo hereda unas pocas variables al subproceso (PATH, HOME…);
+            # se pasan explícitamente las que necesitan los servidores (p. ej. SERPAPI_KEY).
+            env = {**get_default_environment(),
+                   **{k: v for k, v in os.environ.items()
+                      if k in ("SERPAPI_KEY", "SERPAPI_PRICE_IS_TOTAL", "AWS_REGION", "HTTPS_PROXY", "HTTP_PROXY",
+                               "NO_PROXY", "SSL_CERT_FILE", "REQUESTS_CA_BUNDLE")}}
+            params = StdioServerParameters(command=config.PYTHON, args=[str(config.MCP_DIR / script)], env=env)
             client = MCPClient(lambda: stdio_client(params), startup_timeout=60)
             client.start()
             _clients[name] = client
