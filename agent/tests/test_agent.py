@@ -221,3 +221,21 @@ def test_flight_mcp_serpapi_and_fallback(monkeypatch):
     monkeypatch.delenv("SERPAPI_KEY")
     out = json.loads(fs.search_flights("Bogotá", "Cartagena", START, END, 3))
     assert out["simulated"] is True and out["note"] is None
+
+
+def test_mcp_subprocess_receives_serpapi_key(monkeypatch):
+    """El subproceso MCP debe recibir SERPAPI_KEY (el SDK no hereda todo el entorno)."""
+    import importlib
+    from datetime import date as _d
+    monkeypatch.setenv("SERPAPI_KEY", "clave-de-prueba")
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:9")  # fuerza fallo de red rápido y controlado
+    import tripplanner.specialists as sp
+    importlib.reload(sp)
+    tools = sp.flight_mcp_tools()
+    client = sp._clients["flights"]
+    res = client.call_tool_sync("t", "search_flights", {"origin": "BOG", "destination": "CTG",
+                                                        "departure_date": START, "passengers": 1})
+    data = json.loads(res["content"][0]["text"])
+    # Con clave, el MCP intenta Google Flights; al no haber red cae a simulado CON nota.
+    assert data["note"] and "Google Flights" in data["note"], data
+    client.stop(None, None, None)

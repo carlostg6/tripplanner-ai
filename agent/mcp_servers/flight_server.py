@@ -137,6 +137,8 @@ def _offers_for_leg(orig, dest, d: date, passengers: int, max_results: int):
 
 
 SERPAPI_URL = "https://serpapi.com/search.json"
+_CABINS = {"economy": "Económica", "premium economy": "Económica premium", "business": "Ejecutiva",
+           "first": "Primera clase", "económica": "Económica", "turista": "Económica"}
 _CACHE: dict = {}
 _CACHE_TTL = 1800
 
@@ -185,7 +187,7 @@ def _real_leg(orig: str, dest: str, d: date, passengers: int, max_results: int):
             "arrivalTime": ((last.get("arrival_airport") or {}).get("time") or "").replace(" ", "T"),
             "durationMinutes": int(f.get("total_duration") or sum(x.get("duration", 0) for x in segs)),
             "stops": len(f.get("layovers") or []),
-            "cabin": first.get("travel_class") or "Económica",
+            "cabin": _CABINS.get((first.get("travel_class") or "").strip().lower(), first.get("travel_class") or "Económica"),
             "baggage": "Ver condiciones de la aerolínea",
             "pricePerPerson": per, "totalPrice": total, "currency": "COP",
         })
